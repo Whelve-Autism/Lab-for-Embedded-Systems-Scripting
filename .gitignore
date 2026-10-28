@@ -1,0 +1,11 @@
+# Generated experiment outputs (all projects)
+out/
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS metadata
+.DS_Store
