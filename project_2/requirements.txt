@@ -1,0 +1,4 @@
+numpy
+opfunu==1.0.1
+pandas
+setuptools<81
