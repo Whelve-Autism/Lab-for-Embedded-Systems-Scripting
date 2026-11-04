@@ -1,13 +1,15 @@
 """
-Export F1–F30 multi-method convergence PDFs to out/plot/ (1:1 canvas).
+Export F1–F30 multi-method convergence PDFs.
 
-Layout / canvas / fonts match project_1/plot_convergence.py exactly.
-Each method: solid color median curve + lighter IQR band (no gradient).
-Legend: lower-left, 2 columns, translucent white frame; same on all 30 PDFs.
+  out/plot/main/      — main experiment (6 algorithms)
+  out/plot/ablation/  — NICE ablation suite
+
+Layout / canvas / fonts / markers match across both packs.
 """
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import matplotlib as mpl
@@ -19,19 +21,18 @@ from matplotlib.ticker import LogLocator, NullFormatter
 
 ROOT = Path(__file__).resolve().parent
 OUT_ROOT = ROOT / "out"
-OUT_DIR = OUT_ROOT / "plot"
+PLOT_ROOT = OUT_ROOT / "plot"
 
 FIG_INCH = 6.5
 
-# Identical to project_1
 AXES_RECT = (0.215, 0.150, 0.763, 0.835)
 XLABEL_FIG = (0.596, 0.034)
-YLABEL_FIG = (0.038, 0.567)
+YLABEL_FIG = (0.045, 0.567)
 
 BAND_ALPHA = 0.22
-LINEWIDTH = 8.5  # same as project_1
-MARKER_SIZE = 280  # same as project_1
-MARKER_EDGEWIDTH = 4.4  # same as project_1
+LINEWIDTH = 8.5
+MARKER_SIZE = 280
+MARKER_EDGEWIDTH = 4.4
 
 ERROR_FLOOR = 1e-12
 X_MAX = 100_000
@@ -43,9 +44,8 @@ LEGEND_FONTSIZE = 18
 LEGEND_FRAME_ALPHA = 0.78
 LEGEND_ZORDER = 120
 
-# Draw / legend-logical order (left column then right column intent):
-# Left: NICE, DLS-DE, DE-VCR | Right: ECL-SPACMA, iStratDE, BIDE
-METHODS = (
+# folder, legend label, color
+MAIN_METHODS = (
     ("NICE_DE", "NICE", "#d62728"),
     ("DLS_DE", "DLS-DE", "#ff7f0e"),
     ("DE_VCR", "DE-VCR", "#f1c40f"),
@@ -54,15 +54,26 @@ METHODS = (
     ("BIDE", "BIDE", "#9467bd"),
 )
 
-# For ncol=2 row-wise fill: L0,R0,L1,R1,L2,R2
-LEGEND_ROW_ORDER = (
-    "NICE",
-    "ECL-SPACMA",
-    "DLS-DE",
-    "iStratDE",
-    "DE-VCR",
-    "BIDE",
+ABLATION_METHODS = (
+    ("NICE_DE", "NICE", "#d62728"),
+    ("NICE_wo_Persistence", "w/o Persistence", "#c9a227"),
+    ("NICE_wo_LocalSearch", "w/o Local Search", "#0d9488"),
+    ("NICE_wo_Niche", "w/o Niche", "#5ba3d9"),
+    ("NICE_wo_Collaboration", "w/o Collaboration", "#c026d3"),
 )
+
+PACKS = {
+    "main": {
+        "methods": MAIN_METHODS,
+        "out_dir": PLOT_ROOT / "main",
+        "legend_order": [m[1] for m in MAIN_METHODS],
+    },
+    "ablation": {
+        "methods": ABLATION_METHODS,
+        "out_dir": PLOT_ROOT / "ablation",
+        "legend_order": [m[1] for m in ABLATION_METHODS],
+    },
+}
 
 
 def set_style() -> None:
@@ -112,7 +123,6 @@ def parse_curves(df_func: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
 
 
 def load_method_curves(folder: str) -> dict[int, tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
-    """fid -> (fes, q25, q50, q75)."""
     path = OUT_ROOT / folder / "results.csv"
     if not path.exists():
         raise FileNotFoundError(path)
@@ -182,9 +192,9 @@ def _nudge_edge_tick_labels(fig, ax) -> bool:
     return True
 
 
-def _add_legend(ax, label_to_color: dict[str, str]) -> None:
+def _add_legend(ax, label_to_color: dict[str, str], legend_order: list[str]) -> None:
     handles, labels = [], []
-    for name in LEGEND_ROW_ORDER:
+    for name in legend_order:
         color = label_to_color[name]
         handles.append(
             Line2D(
@@ -199,12 +209,11 @@ def _add_legend(ax, label_to_color: dict[str, str]) -> None:
     leg = ax.legend(
         handles,
         labels,
-        loc="lower left",
-        bbox_to_anchor=(0.02, 0.02),
+        loc="upper right",
+        bbox_to_anchor=(0.98, 0.98),
         bbox_transform=ax.transAxes,
         frameon=True,
-        ncol=2,
-        columnspacing=1.05,
+        ncol=1,
         handlelength=1.8,
         handletextpad=0.55,
         borderpad=0.45,
@@ -222,7 +231,9 @@ def _add_legend(ax, label_to_color: dict[str, str]) -> None:
 
 def plot_one(
     fid: int,
+    methods: tuple,
     method_data: dict[str, dict[int, tuple]],
+    legend_order: list[str],
     out_path: Path,
 ) -> bool:
     fig, ax = plt.subplots(figsize=(FIG_INCH, FIG_INCH))
@@ -234,8 +245,9 @@ def plot_one(
     y_all_hi: list[float] = []
     label_to_color: dict[str, str] = {}
 
-    # Bands first (under), then lines (over); stable z-order by METHODS order.
-    for zi, (folder, label, color) in enumerate(METHODS):
+    # Paint reverse so first-listed method (NICE) ends on top.
+    paint_order = list(reversed(methods))
+    for zi, (folder, label, color) in enumerate(paint_order):
         fes, q25, q50, q75 = method_data[folder][fid]
         label_to_color[label] = color
         y_all_lo.append(float(np.nanmin(q25)))
@@ -250,7 +262,7 @@ def plot_one(
             zorder=2 + 0.01 * zi,
         )
 
-    for zi, (folder, label, color) in enumerate(METHODS):
+    for zi, (folder, label, color) in enumerate(paint_order):
         fes, q25, q50, q75 = method_data[folder][fid]
         ax.plot(
             fes,
@@ -262,7 +274,6 @@ def plot_one(
             zorder=10 + zi,
             label=label,
         )
-        # Circles only at major x-tick nodes (same rule as project_1).
         mx, my = [], []
         for tick in X_TICKS:
             idx = int(np.argmin(np.abs(fes - tick)))
@@ -321,7 +332,7 @@ def plot_one(
         fontfamily="Times New Roman",
     )
 
-    _add_legend(ax, label_to_color)
+    _add_legend(ax, label_to_color, legend_order)
 
     fig.canvas.draw()
     nudged = _nudge_edge_tick_labels(fig, ax)
@@ -330,27 +341,62 @@ def plot_one(
     return nudged
 
 
-def main() -> None:
-    set_style()
+def run_pack(pack_name: str) -> None:
+    pack = PACKS[pack_name]
+    methods = pack["methods"]
+    out_dir: Path = pack["out_dir"]
+    legend_order = pack["legend_order"]
+
     method_data: dict[str, dict[int, tuple]] = {}
-    for folder, label, color in METHODS:
-        print(f"Loading {folder} ({label}, {color}) ...")
+    for folder, label, color in methods:
+        print(f"[{pack_name}] Loading {folder} ({label}, {color}) ...")
         method_data[folder] = load_method_curves(folder)
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     nudged_ids: list[int] = []
     for fid in range(1, 31):
-        out_path = OUT_DIR / f"f{fid}.pdf"
-        if plot_one(fid, method_data, out_path):
+        out_path = out_dir / f"f{fid}.pdf"
+        if plot_one(fid, methods, method_data, legend_order, out_path):
             nudged_ids.append(fid)
         written.append(out_path)
 
-    print(f"Wrote {len(written)} PDF files under {OUT_DIR}")
+    print(f"[{pack_name}] Wrote {len(written)} PDF files under {out_dir}")
     print(
-        "Top y-tick nudged down (clipped only): "
+        f"[{pack_name}] Top y-tick nudged: "
         + (", ".join(f"F{i}" for i in nudged_ids) if nudged_ids else "(none)")
     )
+
+
+def migrate_legacy_plot_dir() -> None:
+    """Move out/plot/f*.pdf into out/plot/main/ if still at the old location."""
+    main_dir = PLOT_ROOT / "main"
+    main_dir.mkdir(parents=True, exist_ok=True)
+    moved = 0
+    for pdf in sorted(PLOT_ROOT.glob("f*.pdf")):
+        dest = main_dir / pdf.name
+        pdf.replace(dest)
+        moved += 1
+    if moved:
+        print(f"Moved {moved} legacy PDFs -> {main_dir}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Project 2 convergence plots")
+    parser.add_argument(
+        "--pack",
+        choices=("main", "ablation", "all"),
+        default="all",
+        help="which figure pack to export",
+    )
+    args = parser.parse_args()
+
+    set_style()
+    migrate_legacy_plot_dir()
+
+    packs = ("main", "ablation") if args.pack == "all" else (args.pack,)
+    for name in packs:
+        run_pack(name)
 
 
 if __name__ == "__main__":

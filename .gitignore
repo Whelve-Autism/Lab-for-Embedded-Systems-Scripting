@@ -1,6 +1,9 @@
 # Generated experiment outputs (all projects)
 out/
 
+# Generated aggregate data outside out/
+/project_2/gpt_ablation_full.csv
+
 # Python caches and local environments
 __pycache__/
 *.py[cod]
