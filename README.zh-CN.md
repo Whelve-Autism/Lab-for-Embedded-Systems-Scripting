@@ -29,11 +29,7 @@
 | [Project&nbsp;2](./project_2/) | 实现改进 DE 方法，组合策略并评估各模块作用 | 六种算法对比、NICE-DE、四组消融变体与对比曲线 |
 | [Project&nbsp;3](./project_3/) | 在 Linux 下自动执行 Project 2 程序并分析日志 | 参数遍历、按批次保存、grep/awk 汇总与每小时 Cron 调度 |
 
-```mermaid
-flowchart LR
-    P1["Project 1<br/>实现基础 DE"] --> P2["Project 2<br/>算法对比与策略评估"]
-    P2 --> P3["Project 3<br/>自动运行、汇总与调度"]
-```
+> **Project 1** 基础 DE → **Project 2** 算法对比与消融 → **Project 3** 自动化运行
 
 仓库上传 **源代码、配置和使用说明**。实验结果、生成图表、运行日志及课程取证材料保留在本地。
 

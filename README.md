@@ -29,11 +29,7 @@ This repository contains three connected course projects for **Embedded Systems 
 | [Project&nbsp;2](./project_2/) | Implement improved DE methods, develop a combined method, and evaluate its strategies | Six-method comparison, NICE-DE, four ablation variants, and comparison plots |
 | [Project&nbsp;3](./project_3/) | Automate the Project 2 application and analyze its logs on Linux | Parameter sweeps, isolated experiment batches, grep/awk summaries, and hourly Cron scheduling |
 
-```mermaid
-flowchart LR
-    P1["Project 1<br/>Implement basic DE"] --> P2["Project 2<br/>Compare methods and strategies"]
-    P2 --> P3["Project 3<br/>Automate, summarize, schedule"]
-```
+> **Project 1** Basic DE → **Project 2** Comparison & ablation → **Project 3** Automation
 
 The repository publishes **source code, configuration, and usage documentation**. Generated experiment results, figures, execution logs, and course evidence remain local.
 
