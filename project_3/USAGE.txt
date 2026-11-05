@@ -1,0 +1,130 @@
+Project 3 — Bash Automation & Experiment Analysis
+=================================================
+
+Goal
+----
+Automate NICE (Project 2) over several FE budgets, log every run, extract a
+single scalar mean absolute error per configuration, and schedule the pipeline
+with cron.
+
+Layout
+------
+  install_env.sh         Create local .venv and install requirements
+  run_experiments.sh     Bash orchestrator (for-loop + grep|awk summary)
+  run_nice_p3.py         Thin Python entry (calls Project 2 NICE, no algo change)
+  run_nohup.sh           Background launcher for a full CPU batch (nohup)
+  experiment.log         Append-only run log (created when you execute)
+  summary_report.txt     Latest batch only; a convenient copy of its saved report
+  cron_execution.log     Outer Cron redirect log (created by crontab)
+  crontab.example        Ready-to-paste hourly crontab line for this machine
+  logs/                  nohup stdout/stderr
+  results/P3/<batch_id>/
+    summary_report.txt  Preserved summary for this batch
+    NICE_FE_*/          Per-budget results.csv / results.txt / protocol.json
+  screenshots/           Place course screenshots here
+  archive/               Created by --clean when resetting logs
+
+Dependencies
+------------
+Self-contained under project_3/.venv (also needs sibling ../project_2):
+
+  chmod +x install_env.sh run_experiments.sh run_nohup.sh
+  ./install_env.sh
+
+Quick start (manual, once)
+--------------------------
+  ./run_experiments.sh --help
+  ./run_experiments.sh
+
+Background full batch (recommended on the lab server):
+
+  ./run_nohup.sh --clean
+  tail -f logs/nohup_full_*.log
+
+Smoke test (optional, tiny budget / few functions):
+
+  FE_LIST="2000" FUNCS="1-2" WORKERS=2 ./run_experiments.sh
+
+Full grid (default): FE in {20000, 50000, 100000}, seed=1001, funcs=1-30.
+Default workers for Bash/nohup/cron: 16. NICE runs on the CPU.
+CUDA_VISIBLE_DEVICES=0 only controls GPU visibility; it does not enable GPU
+computation or bind this job to a CPU or GPU node.
+
+Input rules
+-----------
+  - FE_LIST must contain at least one unique integer budget, each >= 100.
+    Empty values, whitespace-only values and repeated budgets are rejected.
+  - SEED is exactly one non-negative integer, without leading zeroes except 0.
+    Lists and ranges are deliberately unsupported for this single-run task.
+  - WORKERS must be a positive integer.
+  - Function ids must be unique and within 1-30; ranges must be ascending.
+  - A direct Python invocation must use a new or empty --out directory.
+    Existing experiment results are never overwritten.
+
+Scalar score (teacher requirement)
+----------------------------------
+  e_i = |f_i_obtained - f_i*|
+  E_mean = (1/30) * sum_i e_i
+
+The Python runner prints a score only when every requested function succeeds
+and its absolute error is finite. Failed configurations retain diagnostic files,
+but protocol.json uses null for the unavailable mean, not a partial average.
+The Bash script records one failure line and returns a non-zero exit code.
+
+One final P3_RESULT line is recorded per configuration. Example success:
+
+  P3_RESULT|run_id=<batch_id>_NICE_FE_20000|max_fes=20000|...|mean_abs_error=...|...|status=ok
+
+Extraction (also done automatically at end of the script):
+
+  grep '^P3_RESULT|' experiment.log | awk -F'|' -v prefix="run_id=<batch_id>_" 'index($2, prefix) == 1 {print $0}'
+
+Replace <batch_id> with the actual Batch-ID shown in the latest report. The
+script applies that filter automatically and checks for exactly one result per
+requested budget. A full default batch has three result rows.
+
+Avoid mixing stale logs
+-----------------------
+Each invocation creates a batch id from its timestamp and process id. Results
+and a summary are saved in that batch's own directory. The main experiment.log
+is append-only; summary_report.txt includes only the latest batch. Older batch
+summaries remain under results/P3/<batch_id>/summary_report.txt.
+
+To archive the aggregate logs and start a new manual batch:
+
+  ./run_experiments.sh --clean
+
+Do NOT pass --clean from crontab. It archives experiment.log and the latest
+summary before running, so hourly evidence would be split across archives.
+It never removes earlier per-batch results or summaries.
+
+Cron (must run on Linux / your VM)
+----------------------------------
+  1. Put absolute script and Python interpreter paths into crontab.example.
+     Use the Linux Python environment containing the required dependencies;
+     Cron does not inherit an interactively activated virtual environment.
+  2. crontab -e   # paste the schedule line
+  3. crontab -l   # verify
+  4. Keep Linux running until >= 3 scheduled batches have successfully completed.
+     A firing or BATCH_START alone is not evidence of successful completion.
+  5. Check three distinct BATCH_END records with any_fail=0, their timestamps,
+     their saved summaries and all 30 function results for each FE budget.
+     Smoke tests on a subset of functions do not count as full submission runs.
+  6. Screenshot: crontab -l, logs, summary_report.txt, script permissions
+
+Unix demos useful for the report
+--------------------------------
+  man bash
+  help for
+  ls -l run_experiments.sh
+  chmod +x run_experiments.sh
+  python3 run_nice_p3.py --help
+
+Re-run without Cron
+-------------------
+  ./run_experiments.sh --clean
+
+The --clean option already starts a new batch after archiving the aggregate
+logs; do not immediately invoke the script a second time unless you intend to
+run an additional batch. Confirm a full batch finishes within one hour before
+using the hourly schedule, so scheduled batches do not overlap.

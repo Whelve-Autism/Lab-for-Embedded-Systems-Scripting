@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+experiment.log
+summary_report.txt
+cron_execution.log
+archive/
+results/P3/*
+!results/P3/.gitkeep
+logs/
+# Course evidence stays local; publish source and configuration only.
+screenshots/*
+!screenshots/.gitkeep
+*.log
+.DS_Store

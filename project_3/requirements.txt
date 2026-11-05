@@ -1,0 +1,6 @@
+# Project 3 reuses Project 2 NICE; install the same stack.
+numpy
+opfunu==1.0.1
+pandas
+setuptools<81
+cma

@@ -1,0 +1,15 @@
+# Project 3 — crontab entry (absolute paths already filled for this machine)
+#
+# Install:
+#   crontab -e
+#   # paste the ONE schedule line below, save
+#   crontab -l
+#
+# Schedule: every hour on the hour.
+# Do NOT add --clean here (would archive the shared experiment.log).
+# Confirm one full batch finishes within ~1 hour before leaving this enabled.
+#
+# After >=3 successful hourly BATCH_END lines with any_fail=0, you may disable:
+#   crontab -e   # comment out / delete the line
+
+0 * * * * CUDA_VISIBLE_DEVICES=0 PYTHON_BIN="/home/fxk/嵌入式脚本开发/实验/代码/project_3/.venv/bin/python" WORKERS=16 /bin/bash "/home/fxk/嵌入式脚本开发/实验/代码/project_3/run_experiments.sh" >> "/home/fxk/嵌入式脚本开发/实验/代码/project_3/cron_execution.log" 2>&1
